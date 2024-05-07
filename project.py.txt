@@ -1,0 +1,148 @@
+import tkinter as tk
+from tkinter import ttk
+from tkinter import *
+from PIL import Image, ImageTk
+import tkinter.font as tkFont
+import time
+import face_recognition
+import cv2
+import numpy as np
+import csv
+import os
+from datetime import datetime
+
+def exit_attendance():
+    root.destroy()
+
+def main_application():
+    global root
+    root = tk.Tk()
+    root.title("Facial Recognition Attendance System")
+    root.geometry("1000x2500")
+    root.configure(bg="black")
+    root.attributes("-fullscreen", True)
+    image = Image.open(r"C:\Users\Dell\Pictures\\1698161106177.jpg")
+    image.thumbnail((600, 400))
+    image.save('image_thumbnail.jpg')
+    photo = ImageTk.PhotoImage(image)
+    label = ttk.Label(root, image=photo)
+    label.pack(side="top", fill='both')
+    label.place(x=480, y=200)
+    label1 = ttk.Label(root, text="WELCOME TO THE FUTURE OF ATTENDANCE :", font=("MS Serif", 16), foreground="red", background="black")
+    label1.pack(side="top")
+    label1.place(x=550, y=50)
+    label2 = ttk.Label(root, text="YOUR FACE , YOUR IDENTITY", font=("MS Serif", 16), foreground="red", background="black")
+    label2.pack(side="top")
+    label2.place(x=625, y=100)
+    start_button = tk.Button(root, text="START ATTENDANCE", width=20, height=5, foreground="white", background="blue", command=start_attendance)
+    start_button.place(x=600, y=500)
+
+    exit_button = tk.Button(root, text="EXIT ATTENDANCE", width=20, height=5, foreground="white", background="blue", command=exit_attendance)
+    exit_button.place(x=800, y=500)
+
+    root.bind('<Escape>', exit_attendance)
+    root.mainloop()
+
+def start_attendance():
+    loading = tk.Toplevel()
+    loading.geometry("300x150")
+    loading.title("Loading Screen")
+    loading.configure(bg="black")
+    loading.attributes("-fullscreen",True)
+    img = Image.open(r"C:\Users\Dell\Pictures\giphy.gif")
+    img.thumbnail((4500,4500))
+    img.save('image_thumbnail.gif')
+    photo = ImageTk.PhotoImage(img)
+    label = ttk.Label(loading, image=photo)
+    label.pack(side="top",fill='both')
+    label.place(x=525,y=225)
+    percentage = ttk.Label(loading, text="0%", foreground="white",background="black",font=("Helvetica", 14))
+    percentage.place(x=825,y=353)
+    progress_bar = ttk.Progressbar(loading, orient="horizontal", length=200, mode="determinate",)
+    progress_bar.place(x=685,y=400)
+    for i in range(102):
+      
+     
+      loading.update()
+      time.sleep(0.05)
+      percentage.config(text=f"{i}%")
+      progress_bar.config(value=i)
+    time.sleep(1)
+    loading.destroy()
+    run_face_recognition()
+
+def run_face_recognition():
+    
+    video_capture = cv2.VideoCapture(0)
+
+    bhushan_image = face_recognition.load_image_file(r"C:\Users\Dell\Pictures\photo.jpg")
+    bhushan_encoding = face_recognition.face_encodings(bhushan_image)[0]
+
+    darshnik_image = face_recognition.load_image_file(r"C:\Users\Dell\Pictures\photo.jpg")
+    darshnik_encoding = face_recognition.face_encodings(darshnik_image)[0]
+
+    known_face_encoding = [
+        bhushan_encoding,
+        darshnik_encoding,
+    ]
+
+    known_faces_names = [
+        "bhushan",
+        "darshnik",
+    ]
+
+    students = known_faces_names.copy()
+
+    face_locations = []
+    face_encodings = []
+    face_names = []
+    s = True
+
+    now = datetime.now()
+    current_date = now.strftime("%Y-%m-%d")
+
+    f = open(current_date + ".csv", "w+", newline='')
+    lnwriter = csv.writer(f)
+
+    while True:
+        _, frame = video_capture.read()
+        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        rgb_small_frame = small_frame[:, :, ::-1]
+        if s:
+            face_locations = face_recognition.face_locations(rgb_small_frame)
+            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+            face_names = []
+            for face_encoding in face_encodings:
+                matches = face_recognition.compare_faces(known_face_encoding, face_encoding)
+                name = ""
+                face_distance = face_recognition.face_distance(known_face_encoding, face_encoding)
+                best_match_index = np.argmin(face_distance)
+                if matches[best_match_index]:
+                    name = known_faces_names[best_match_index]
+                    top, right, bottom, left = face_locations[0]
+                    top = top * 4  
+                    right = right * 4
+                    bottom = bottom * 4
+                    left = left * 4
+
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(frame, name, (left + 6, bottom - 6), font, 0.5, (0,0,0), 1)
+
+                face_names.append(name)
+                if name in known_faces_names:
+                    if name in students:
+                        students.remove(name)
+                        print(students)
+                        current_time = now.strftime("%H:%M:%S")
+                        lnwriter.writerow([name, current_time])
+        cv2.imshow("attendence system", frame)
+        if cv2.waitKey(1) & 0xFF == ord('z'):
+            break
+    video_capture.release()
+    cv2.destroyAllWindows()
+    f.close()
+    root.destroy()
+
+if __name__ == "__main__":
+    main_application()
